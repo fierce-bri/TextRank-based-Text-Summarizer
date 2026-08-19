@@ -1,0 +1,42 @@
+# Version control
+.git/
+.github/
+.gitignore
+
+# Python caches and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Test and coverage files
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+requirements-dev.txt
+
+# Original research material not required at runtime
+text_summarization.ipynb
+report-1.pdf
+
+# Project documentation
+README.md
+
+# IDE settings
+.vscode/
+.idea/
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs and temporary files
+*.log
+*.tmp
