@@ -1,0 +1,95 @@
+name: Docker
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-smoke-test:
+    name: Build and smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Show Docker version
+        run: docker version
+
+      - name: Build image
+        run: docker build --tag textrank-summarizer:test .
+
+      - name: Start API container
+        run: |
+          docker run --detach \
+            --name textrank-api \
+            --publish 8000:8000 \
+            textrank-summarizer:test
+
+      - name: Wait for health endpoint
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error \
+              http://127.0.0.1:8000/health \
+              --output /tmp/health.json; then
+
+              cat /tmp/health.json
+
+              grep --extended-regexp --quiet \
+                '"status"[[:space:]]*:[[:space:]]*"ok"' \
+                /tmp/health.json
+
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          echo "API did not become ready within 60 seconds."
+          exit 1
+
+      - name: Smoke test summarization endpoint
+        run: |
+          cat > /tmp/request.json <<'JSON'
+          {
+            "text": "TextRank represents sentences as graph nodes. Related sentences are connected by weighted edges. PageRank scores the sentence nodes. The highest-ranked sentences form the summary.",
+            "sentence_count": 2,
+            "similarity_threshold": 0.05
+          }
+          JSON
+
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --data @/tmp/request.json \
+            http://127.0.0.1:8000/summarize \
+            --output /tmp/summary.json
+
+          cat /tmp/summary.json
+
+          grep --extended-regexp --quiet \
+            '"original_sentence_count"[[:space:]]*:[[:space:]]*4' \
+            /tmp/summary.json
+
+          grep --extended-regexp --quiet \
+            '"selected_sentence_count"[[:space:]]*:[[:space:]]*2' \
+            /tmp/summary.json
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs textrank-api || true
+
+      - name: Remove container
+        if: always()
+        run: docker rm --force textrank-api || true
