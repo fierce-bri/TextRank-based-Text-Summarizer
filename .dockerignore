@@ -23,7 +23,6 @@ requirements-dev.txt
 
 # Original research material not required at runtime
 text_summarization.ipynb
-report-1.pdf
 
 # Project documentation
 README.md
