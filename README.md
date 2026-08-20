@@ -245,9 +245,13 @@ Runs the pytest suite against:
 ├── requirements-dev.txt
 ├── requirements.txt
 ├── text_summarization.ipynb        # Original research notebook
-├── report-1.pdf                    # Original academic report
 └── README.md
 ```
+## Project Background
+
+This project began as a university NLP experiment and was later redesigned as a reusable FastAPI service.
+
+The current `app/` package is the maintained implementation. It replaces the original notebook-based workflow with reusable Python modules, validated API endpoints, automated tests, Docker packaging, and continuous integration.
 
 ## Design Decisions
 
