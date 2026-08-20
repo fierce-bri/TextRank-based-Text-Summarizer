@@ -282,11 +282,11 @@ The service uses a lightweight sentence splitter and does not download NLTK data
 
 Some documents contain sentences with little vocabulary overlap. When the graph has no useful edges, the service falls back to TF-IDF relevance instead of failing or returning an empty summary.
 
-## Original Research Material
+## Original Research Notebook
 
-The repository retains the original Jupyter notebook and academic report to show the project’s progression from an exploratory NLP implementation to a reusable API.
+The repository retains the original Jupyter notebook as a historical snapshot of the project’s university-stage implementation and early TextRank experiments.
 
-The current `app/` package should be used for running or integrating the service. The notebook is preserved for historical and research context.
+The maintained implementation is now located in the `app/` package. The notebook is preserved for research context and includes the original graph visualisation, while the current API contains the reusable, tested, and containerized implementation.
 
 ## Current Limitations
 
