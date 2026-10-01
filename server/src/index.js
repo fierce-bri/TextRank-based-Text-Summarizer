@@ -1,4 +1,5 @@
 import express from 'express'
+import { pool } from './db.js'
 
 const app = express()
 const host = '127.0.0.1'
@@ -96,6 +97,152 @@ app.post('/api/summarize', async (request, response) => {
       detail: signal.aborted
         ? 'The Python summarizer did not respond within 10 seconds.'
         : 'The Python summarizer is unavailable or returned invalid JSON.',
+    })
+  }
+})
+
+// Save a summary submitted by the client.
+app.post('/api/summaries', async (request, response) => {
+  response.set('Cache-Control', 'no-store')
+
+  if (!request.is('application/json')) {
+    return response.status(415).json({
+      detail: 'Content-Type must be application/json.',
+    })
+  }
+
+  const input = request.body
+
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return response.status(422).json({
+      detail: 'The request body must be a JSON object.',
+    })
+  }
+
+  const allowedFields = [
+    'source_text',
+    'summary',
+    'original_sentence_count',
+    'selected_sentence_count',
+  ]
+
+  if (Object.keys(input).some((key) => !allowedFields.includes(key))) {
+    return response.status(422).json({
+      detail: 'The request contains unexpected fields.',
+    })
+  }
+
+  if (
+    typeof input.source_text !== 'string' ||
+    typeof input.summary !== 'string'
+  ) {
+    return response.status(422).json({
+      detail: 'source_text and summary must be strings.',
+    })
+  }
+
+  const sourceText = input.source_text.trim()
+  const summaryText = input.summary.trim()
+
+  // Count Unicode characters rather than JavaScript UTF-16 code units.
+  const sourceLength = Array.from(sourceText).length
+  const summaryLength = Array.from(summaryText).length
+
+  if (
+    sourceLength < 1 ||
+    sourceLength > 50_000 ||
+    summaryLength < 1 ||
+    summaryLength > 50_000 ||
+    sourceText.includes('\u0000') ||
+    summaryText.includes('\u0000')
+  ) {
+    return response.status(422).json({
+      detail:
+        'Text fields must contain 1–50,000 characters and no null characters.',
+    })
+  }
+
+  const originalCount = input.original_sentence_count
+  const selectedCount = input.selected_sentence_count
+
+  if (
+    !Number.isInteger(originalCount) ||
+    originalCount < 1 ||
+    originalCount > sourceLength ||
+    !Number.isInteger(selectedCount) ||
+    selectedCount < 1 ||
+    selectedCount > 20 ||
+    selectedCount > originalCount
+  ) {
+    return response.status(422).json({
+      detail:
+        'Invalid sentence counts. Select 1–20 sentences, no more than the original count.',
+    })
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `
+        INSERT INTO public.saved_summaries (
+          source_text,
+          summary,
+          original_sentence_count,
+          selected_sentence_count
+        )
+        VALUES ($1, $2, $3, $4)
+        RETURNING
+          id,
+          summary,
+          original_sentence_count,
+          selected_sentence_count,
+          created_at
+      `,
+      [sourceText, summaryText, originalCount, selectedCount],
+    )
+
+    return response.status(201).json({
+      saved_summary: rows[0],
+    })
+  } catch (error) {
+    console.error(
+      'Could not save summary:',
+      error.code ?? 'UNKNOWN',
+    )
+
+    return response.status(500).json({
+      detail: 'Could not save the summary. Please try again.',
+    })
+  }
+})
+
+// Read the 20 newest saved summaries.
+app.get('/api/summaries', async (_request, response) => {
+  response.set('Cache-Control', 'no-store')
+
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        id,
+        summary,
+        original_sentence_count,
+        selected_sentence_count,
+        created_at
+      FROM public.saved_summaries
+      ORDER BY created_at DESC, id DESC
+      LIMIT 20
+    `)
+
+    return response.json({
+      summaries: rows,
+    })
+  } catch (error) {
+    console.error(
+      'Could not load saved summaries:',
+      error.code ?? 'UNKNOWN',
+    )
+
+    return response.status(500).json({
+      detail: 'Could not load saved summaries. Please try again.',
     })
   }
 })

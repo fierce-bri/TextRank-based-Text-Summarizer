@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import SaveSummary from './SaveSummary.jsx'
 import './App.css'
 
 const MAX_TEXT_LENGTH = 50_000
@@ -41,6 +42,10 @@ export default function App() {
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+
+  // Prevent editing or generating a new result during a save.
+  const isBusy = isLoading || isSaving
 
   function resetFeedback() {
     setResult(null)
@@ -56,14 +61,18 @@ export default function App() {
     // Submit through JavaScript instead of refreshing the page.
     event.preventDefault()
 
-    if (isLoading || !text.trim()) {
+    if (isBusy || !text.trim()) {
       return
     }
+
+    // Keep a snapshot of the input used for this request.
+    const sourceText = text.trim()
+    const requestedCount = sentenceCount
 
     setIsLoading(true)
     resetFeedback()
 
-    // Allow a little more time than Node's 10-second upstream timeout.
+    // Allow a little more time than Node's upstream timeout.
     const controller = new AbortController()
     const timeoutId = window.setTimeout(() => {
       controller.abort()
@@ -76,14 +85,14 @@ export default function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          text: text.trim(),
-          sentence_count: sentenceCount,
+          text: sourceText,
+          sentence_count: requestedCount,
           similarity_threshold: 0.05,
         }),
         signal: controller.signal,
       })
 
-      // A failed proxy request might not contain a JSON response.
+      // A proxy failure might not contain a JSON response.
       const data = await response.json().catch(() => null)
 
       if (!response.ok) {
@@ -98,12 +107,16 @@ export default function App() {
         data.original_sentence_count < 1 ||
         data.selected_sentence_count < 1 ||
         data.selected_sentence_count > data.original_sentence_count ||
-        data.selected_sentence_count > sentenceCount
+        data.selected_sentence_count > requestedCount
       ) {
         throw new Error('The API returned an unexpected response.')
       }
 
-      setResult(data)
+      // Save the source alongside the result so they stay paired.
+      setResult({
+        ...data,
+        source_text: sourceText,
+      })
     } catch (failure) {
       if (controller.signal.aborted) {
         setError('The request took too long. Please try again.')
@@ -127,7 +140,9 @@ export default function App() {
   return (
     <main className="app-shell">
       <header className="app-header">
-        <p className="eyebrow">EXTRACTIVE TEXT SUMMARIZATION</p>
+        <p className="eyebrow">
+          EXTRACTIVE TEXT SUMMARIZATION
+        </p>
 
         <h1>TextRank</h1>
 
@@ -138,7 +153,10 @@ export default function App() {
       </header>
 
       <div className="workspace">
-        <section className="panel" aria-labelledby="input-heading">
+        <section
+          className="panel"
+          aria-labelledby="input-heading"
+        >
           <h2 id="input-heading">Original text</h2>
 
           <form onSubmit={handleSubmit}>
@@ -155,7 +173,7 @@ export default function App() {
               placeholder="Paste an article, report, or set of notes..."
               value={text}
               onChange={(event) => updateText(event.target.value)}
-              disabled={isLoading}
+              disabled={isBusy}
               aria-describedby="text-help"
             />
 
@@ -176,7 +194,7 @@ export default function App() {
                 setSentenceCount(Number(event.target.value))
                 resetFeedback()
               }}
-              disabled={isLoading}
+              disabled={isBusy}
             >
               {SENTENCE_OPTIONS.map((count) => (
                 <option key={count} value={count}>
@@ -189,7 +207,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => updateText(EXAMPLE_TEXT)}
-                disabled={isLoading}
+                disabled={isBusy}
               >
                 Use example
               </button>
@@ -197,7 +215,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => updateText('')}
-                disabled={isLoading || text.length === 0}
+                disabled={isBusy || text.length === 0}
               >
                 Clear text
               </button>
@@ -206,7 +224,7 @@ export default function App() {
             <button
               type="submit"
               className="primary-button"
-              disabled={isLoading || !text.trim()}
+              disabled={isBusy || !text.trim()}
             >
               {isLoading ? 'Generating…' : 'Generate summary'}
             </button>
@@ -219,12 +237,16 @@ export default function App() {
 
             <p className="field-note">
               Text is sent to your local summarization service.
-              Saving summaries is not available yet.
+              Saving stores both the source text and summary
+              in your local database.
             </p>
           </form>
         </section>
 
-        <section className="panel" aria-labelledby="summary-heading">
+        <section
+          className="panel"
+          aria-labelledby="summary-heading"
+        >
           <h2 id="summary-heading">Your summary</h2>
 
           <div aria-live="polite" aria-atomic="true">
@@ -234,12 +256,19 @@ export default function App() {
               </p>
             ) : result ? (
               <div>
-                <p className="summary-text">{result.summary}</p>
+                <p className="summary-text">
+                  {result.summary}
+                </p>
 
                 <p className="field-note">
                   Selected {result.selected_sentence_count} of{' '}
                   {result.original_sentence_count} sentences.
                 </p>
+
+                <SaveSummary
+                  result={result}
+                  onSavingChange={setIsSaving}
+                />
               </div>
             ) : (
               <p className="empty-state">
