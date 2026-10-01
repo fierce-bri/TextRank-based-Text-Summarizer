@@ -1,0 +1,184 @@
+/* Page layout */
+.app-shell {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 48px 0;
+}
+
+.app-header {
+  margin-bottom: 30px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  line-height: 1.1;
+  letter-spacing: -0.045em;
+}
+
+.subtitle {
+  max-width: 60ch;
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 24px;
+}
+
+/* Input and result panels */
+.panel {
+  min-width: 0;
+  padding: 26px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 8px 28px rgb(25 47 57 / 5%);
+}
+
+.panel h2 {
+  margin: 0 0 22px;
+  font-size: 1.2rem;
+}
+
+.panel label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+/* Form controls */
+.panel textarea,
+.panel select {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fafcfc;
+  color: inherit;
+}
+
+.panel textarea {
+  min-height: 280px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.panel textarea::placeholder {
+  color: #687782;
+}
+
+.panel :is(textarea, select, button):focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.field-note {
+  margin: 8px 0 20px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+/* Buttons */
+.secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0 16px;
+}
+
+.panel button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334550;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.panel button:not(:disabled):hover {
+  border-color: var(--accent);
+  background: #edf6f4;
+}
+
+.panel .primary-button {
+  display: block;
+  width: 100%;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.panel .primary-button:not(:disabled):hover {
+  background: #115e59;
+}
+
+.panel button:disabled {
+  border-color: var(--border);
+  background: #e8eef0;
+  color: #576773;
+  cursor: not-allowed;
+}
+
+/* Placeholder until a real summary is available */
+.empty-state {
+  display: grid;
+  place-items: center;
+  min-height: 280px;
+  margin: 0;
+  padding: 28px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: #fafcfc;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Stack the panels on smaller screens */
+@media (max-width: 800px) {
+  .app-shell {
+    width: calc(100% - 24px);
+    padding: 28px 0;
+  }
+
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .panel {
+    padding: 20px;
+  }
+}
+/* Generated summary */
+.summary-text {
+  margin: 0;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Request failure message */
+.error-message {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #efb4b4;
+  border-radius: 8px;
+  background: #fff4f4;
+  color: #8b2222;
+  overflow-wrap: anywhere;
+}

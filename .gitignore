@@ -38,3 +38,10 @@ Desktop.ini
 # Logs and temporary files
 *.log
 *.tmp
+# JavaScript dependencies and generated test files
+node_modules/
+coverage/
+.vite/
+
+# Allow environment configuration examples
+!.env.example

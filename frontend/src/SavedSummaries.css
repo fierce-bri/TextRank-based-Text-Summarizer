@@ -1,0 +1,54 @@
+.history-panel {
+  margin-top: 24px;
+}
+
+.history-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.history-toolbar h2 {
+  margin: 0;
+}
+
+.history-list {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-item {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fafcfc;
+}
+
+.history-item .field-note {
+  margin: 0 0 10px;
+}
+
+.history-item details {
+  margin-top: 12px;
+}
+
+.history-item summary {
+  color: var(--accent);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.history-item summary:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.history-item details[open] .summary-text {
+  margin-top: 12px;
+}
