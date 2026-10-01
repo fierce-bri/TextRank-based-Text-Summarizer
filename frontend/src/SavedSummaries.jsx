@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './SavedSummaries.css'
 
 function isValidSummary(item) {
@@ -23,6 +23,21 @@ export default function SavedSummaries() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [refreshCount, setRefreshCount] = useState(0)
+
+  const [deletingId, setDeletingId] = useState(null)
+  const [deleteError, setDeleteError] = useState('')
+  const [notice, setNotice] = useState('')
+
+  // Track the current deletion request independently of rendering.
+  const deleteRequest = useRef(null)
+
+  // Cancel an outstanding request if this component is removed.
+  useEffect(() => {
+    return () => {
+      deleteRequest.current?.abort()
+      deleteRequest.current = null
+    }
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -53,7 +68,9 @@ export default function SavedSummaries() {
           !Array.isArray(data?.summaries) ||
           !data.summaries.every(isValidSummary)
         ) {
-          throw new Error('The API returned an unexpected history response.')
+          throw new Error(
+            'The API returned an unexpected history response.',
+          )
         }
 
         if (active) {
@@ -63,9 +80,13 @@ export default function SavedSummaries() {
         if (!active) return
 
         if (controller.signal.aborted) {
-          setError('Loading history took too long. Try Refresh history.')
+          setError(
+            'Loading history took too long. Try Refresh history.',
+          )
         } else if (failure instanceof TypeError) {
-          setError('Could not reach the history API. Check the Node server.')
+          setError(
+            'Could not reach the history API. Check the Node server.',
+          )
         } else {
           setError(
             failure instanceof Error
@@ -90,9 +111,97 @@ export default function SavedSummaries() {
   }, [refreshCount])
 
   function refreshHistory() {
+    if (isLoading || deleteRequest.current) return
+
     setIsLoading(true)
     setError('')
+    setDeleteError('')
+    setNotice('')
     setRefreshCount((count) => count + 1)
+  }
+
+  async function handleDelete(item) {
+    if (isLoading || deleteRequest.current) return
+
+    const confirmed = window.confirm(
+      'Delete this saved summary and its stored source text?\n\n' +
+        item.summary.slice(0, 120) +
+        '\n\nThis cannot be undone in the app.',
+    )
+
+    // Cancelling must not send a deletion request.
+    if (!confirmed) return
+
+    const controller = new AbortController()
+    deleteRequest.current = controller
+
+    setDeletingId(item.id)
+    setDeleteError('')
+    setNotice('')
+
+    const timeoutId = window.setTimeout(() => {
+      controller.abort()
+    }, 15_000)
+
+    try {
+      const response = await fetch(
+        `/api/summaries/${encodeURIComponent(item.id)}`,
+        {
+          method: 'DELETE',
+          signal: controller.signal,
+        },
+      )
+
+      let message = 'Saved summary deleted.'
+
+      // A successful 204 response has no JSON body to parse.
+      if (response.status !== 204) {
+        const data = await response.json().catch(() => null)
+
+        if (
+          response.status === 404 &&
+          data?.detail === 'Saved summary not found.'
+        ) {
+          // For example, the record was deleted in another browser tab.
+          message = 'That summary was already absent. List updated.'
+        } else {
+          throw new Error(
+            typeof data?.detail === 'string'
+              ? data.detail
+              : `Unexpected deletion response (HTTP ${response.status}).`,
+          )
+        }
+      }
+
+      if (deleteRequest.current !== controller) return
+
+      // Update the visible list only after confirmation from the API.
+      setSummaries((current) =>
+        current.filter((summary) => summary.id !== item.id),
+      )
+      setNotice(message)
+    } catch (failure) {
+      if (deleteRequest.current !== controller) return
+
+      if (controller.signal.aborted) {
+        setDeleteError('The deletion confirmation took too long.')
+      } else if (failure instanceof TypeError) {
+        setDeleteError('Could not reach the deletion API.')
+      } else {
+        setDeleteError(
+          failure instanceof Error
+            ? failure.message
+            : 'Could not confirm deletion.',
+        )
+      }
+    } finally {
+      window.clearTimeout(timeoutId)
+
+      if (deleteRequest.current === controller) {
+        deleteRequest.current = null
+        setDeletingId(null)
+      }
+    }
   }
 
   return (
@@ -106,14 +215,15 @@ export default function SavedSummaries() {
         <button
           type="button"
           onClick={refreshHistory}
-          disabled={isLoading}
+          disabled={isLoading || deletingId !== null}
         >
           {isLoading ? 'Loading…' : 'Refresh history'}
         </button>
       </div>
 
       <p className="field-note">
-        Up to 20 newest saves. Use Refresh history after saving a new summary.
+        Up to 20 newest saves. Use Refresh history to reload the list.
+        Deleting a save also removes its stored source text.
       </p>
 
       {isLoading && (
@@ -123,12 +233,31 @@ export default function SavedSummaries() {
       )}
 
       {error && (
-        <p className="error-message" role="alert">{error}</p>
+        <p className="error-message" role="alert">
+          {error}
+        </p>
+      )}
+
+      {notice && (
+        <p className="field-note" role="status">
+          {notice}
+        </p>
+      )}
+
+      {deleteError && (
+        <div className="error-message" role="alert">
+          <p>{deleteError}</p>
+          <p>
+            Refresh history before retrying. A lost confirmation
+            does not necessarily mean deletion failed.
+          </p>
+        </div>
       )}
 
       {!isLoading && !error && summaries.length === 0 && (
         <p className="field-note" role="status">
-          No saved summaries yet. Generate one, save it, then refresh history.
+          No saved summaries yet. Generate one, save it,
+          then refresh history.
         </p>
       )}
 
@@ -157,6 +286,21 @@ export default function SavedSummaries() {
                   <p className="summary-text">{item.summary}</p>
                 </details>
               )}
+
+              <div className="secondary-actions">
+                <button
+                  type="button"
+                  onClick={() => handleDelete(item)}
+                  disabled={deletingId !== null}
+                  aria-label={`Delete summary saved ${new Date(
+                    item.created_at,
+                  ).toLocaleString()}`}
+                >
+                  {deletingId === item.id
+                    ? 'Deleting…'
+                    : 'Delete'}
+                </button>
+              </div>
             </li>
           ))}
         </ul>

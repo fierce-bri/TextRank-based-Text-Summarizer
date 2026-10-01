@@ -214,7 +214,50 @@ app.post('/api/summaries', async (request, response) => {
     })
   }
 })
+// Delete one saved summary by its unique ID.
+// This remains a local, single-user API without per-user authorization.
+app.delete('/api/summaries/:id', async (request, response) => {
+  response.set('Cache-Control', 'no-store')
 
+  const { id } = request.params
+  const uuidPattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+  if (
+    typeof id !== 'string' ||
+    id.length !== 36 ||
+    !uuidPattern.test(id)
+  ) {
+    return response.status(400).json({
+      detail: 'Summary ID must be a valid UUID.',
+    })
+  }
+
+  try {
+    const { rowCount } = await pool.query(
+      'DELETE FROM public.saved_summaries WHERE id = $1::uuid',
+      [id],
+    )
+
+    if (rowCount === 0) {
+      return response.status(404).json({
+        detail: 'Saved summary not found.',
+      })
+    }
+
+    // Successful deletion: deliberately return no response body.
+    return response.status(204).end()
+  } catch (error) {
+    console.error(
+      'Could not delete saved summary:',
+      error.code ?? 'UNKNOWN',
+    )
+
+    return response.status(500).json({
+      detail: 'Could not delete the saved summary. Please try again.',
+    })
+  }
+})
 // Read the 20 newest saved summaries.
 app.get('/api/summaries', async (_request, response) => {
   response.set('Cache-Control', 'no-store')
