@@ -164,3 +164,21 @@
     padding: 20px;
   }
 }
+/* Generated summary */
+.summary-text {
+  margin: 0;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Request failure message */
+.error-message {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #efb4b4;
+  border-radius: 8px;
+  background: #fff4f4;
+  color: #8b2222;
+  overflow-wrap: anywhere;
+}
