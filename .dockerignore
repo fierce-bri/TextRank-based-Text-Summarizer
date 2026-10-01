@@ -39,3 +39,12 @@ Desktop.ini
 # Logs and temporary files
 *.log
 *.tmp
+# Environment files are supplied at runtime, not during image builds.
+**/.env
+**/.env.*
+
+# JavaScript dependencies and generated output
+**/node_modules/
+**/dist/
+**/coverage/
+**/.vite/
