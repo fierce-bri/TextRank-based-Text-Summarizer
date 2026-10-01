@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import SaveSummary from './SaveSummary.jsx'
+import SavedSummaries from './SavedSummaries.jsx'
 import './App.css'
 
 const MAX_TEXT_LENGTH = 50_000
@@ -277,8 +278,10 @@ export default function App() {
               </p>
             )}
           </div>
-        </section>
+                </section>
       </div>
+
+      <SavedSummaries />
     </main>
   )
 }
